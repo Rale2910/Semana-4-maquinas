@@ -121,8 +121,16 @@
         .calc-chart-btn:hover {
             background-color: #e0a800;
         }
+        .reset-btn {
+            background-color: #6c757d;
+            color: white;
+            font-weight: bold;
+        }
+        .reset-btn:hover {
+            background-color: #5a6268;
+        }
         .table-wrapper {
-            max-height: 260px;
+            max-height: 240px;
             overflow-y: auto;
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -192,18 +200,19 @@
     <h2 class="pdf-title">Simulador de Motor Asíncrono Trifásico</h2>
     <p class="subtitle">Par Electromagnético y Potencia Mecánica vs Deslizamiento</p>
     
+    <!-- Panel de parámetros requeridos (vacíos obligatorios) -->
     <div class="config-panel">
         <div class="input-group">
             <label>Tensión Línea (V_L):</label>
-            <input type="number" id="vLine" placeholder="Ej. 380" step="any">
+            <input type="number" id="vLine" placeholder="Ej. 400" step="any">
         </div>
         <div class="input-group">
             <label>Frecuencia (f en Hz):</label>
-            <input type="number" id="freq" placeholder="Ej. 50" step="any">
+            <input type="number" id="freq" placeholder="Ej. 60" step="any">
         </div>
         <div class="input-group">
             <label>Número de Polos:</label>
-            <input type="number" id="poles" placeholder="Ej. 10" step="1">
+            <input type="number" id="poles" placeholder="Ej. 8" step="1">
         </div>
         <div class="input-group">
             <label>Resistencia R₁ (&Omega;):</label>
@@ -235,6 +244,8 @@
                     <button class="action-btn calc-values-btn" id="calcValuesBtn">Calcular Torque y Potencia</button>
                     <button class="action-btn calc-chart-btn" id="calcChartBtn">Calcular Gráfica</button>
                 </div>
+                <!-- Botón de Reinicio -->
+                <button class="action-btn reset-btn" id="resetBtn">Reiniciar Todo</button>
             </div>
             <div class="table-wrapper">
                 <table id="resultsTable">
@@ -253,8 +264,7 @@
         </div>
     </div>
 
-    <!-- Firma en la parte derecha inferior -->
-    <div class="signature">ALEJANDRO REYES</div>
+    <div class="signature">by: ALEJANDRO REYES</div>
 </div>
 
 <div class="btn-container">
@@ -264,14 +274,28 @@
 <script>
     const tableBody = document.getElementById('tableBody');
 
+    // Función estricta para validar que no existan campos vacíos
     function obtenerParametros() {
-        const V_line = parseFloat(document.getElementById('vLine').value) || 380;
-        const f = parseFloat(document.getElementById('freq').value) || 50;
-        const poles = parseInt(document.getElementById('poles').value) || 10;
-        const R1 = document.getElementById('r1').value !== '' ? parseFloat(document.getElementById('r1').value) : 0.5;
-        const X1 = document.getElementById('x1').value !== '' ? parseFloat(document.getElementById('x1').value) : 3.0;
-        const R2_prime = document.getElementById('r2Prime').value !== '' ? parseFloat(document.getElementById('r2Prime').value) : 0.8;
-        const X2_prime = document.getElementById('x2Prime').value !== '' ? parseFloat(document.getElementById('x2Prime').value) : 3.5;
+        const vLineVal = document.getElementById('vLine').value;
+        const freqVal = document.getElementById('freq').value;
+        const polesVal = document.getElementById('poles').value;
+        const r1Val = document.getElementById('r1').value;
+        const x1Val = document.getElementById('x1').value;
+        const r2PrimeVal = document.getElementById('r2Prime').value;
+        const x2PrimeVal = document.getElementById('x2Prime').value;
+
+        // Si falta alguno, retorna null para bloquear el cálculo erróneo
+        if (vLineVal === '' || freqVal === '' || polesVal === '' || r1Val === '' || x1Val === '' || r2PrimeVal === '' || x2PrimeVal === '') {
+            return null;
+        }
+
+        const V_line = parseFloat(vLineVal);
+        const f = parseFloat(freqVal);
+        const poles = parseInt(polesVal);
+        const R1 = parseFloat(r1Val);
+        const X1 = parseFloat(x1Val);
+        const R2_prime = parseFloat(r2PrimeVal);
+        const X2_prime = parseFloat(x2PrimeVal);
 
         const V1 = V_line / Math.sqrt(3);
         const n_s = (120 * f) / poles; 
@@ -391,9 +415,19 @@
         }
     });
 
+    // Botón: Calcular Torque y Potencia
     document.getElementById('calcValuesBtn').addEventListener('click', () => {
         const p = obtenerParametros();
+        if (!p) {
+            alert('Por favor, complete todos los parámetros del motor (Tensión, Frecuencia, Polos, Resistencias y Reactancias) antes de calcular.');
+            return;
+        }
         const rows = tableBody.querySelectorAll('tr');
+        if (rows.length === 0) {
+            alert('Agregue al menos un valor de deslizamiento s(%).');
+            return;
+        }
+
         rows.forEach(row => {
             const input = row.querySelector('.s-input');
             const tdTorque = row.querySelector('.res-torque');
@@ -411,8 +445,14 @@
         });
     });
 
+    // Botón: Calcular Gráfica
     document.getElementById('calcChartBtn').addEventListener('click', () => {
         const p = obtenerParametros();
+        if (!p) {
+            alert('Por favor, complete todos los parámetros del motor antes de generar la gráfica.');
+            return;
+        }
+
         const rows = tableBody.querySelectorAll('tr');
         const puntosTorque = [];
         const puntosPotencia = [];
@@ -459,6 +499,23 @@
         dualChart.update();
     });
 
+    // Botón: Reiniciar Todo
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        // Limpiar inputs de parámetros
+        document.querySelectorAll('.config-panel input').forEach(input => input.value = '');
+        // Limpiar tabla
+        tableBody.innerHTML = '';
+        // Agregar una fila vacía inicial
+        agregarFila();
+        // Limpiar gráfica
+        dualChart.data.datasets[0].data = [];
+        dualChart.data.datasets[1].data = [];
+        dualChart.data.datasets[2].data = [];
+        dualChart.data.datasets[3].data = [];
+        dualChart.update();
+    });
+
+    // Iniciar con una fila vacía limpia
     agregarFila();
 
     document.getElementById('downloadPdfBtn').addEventListener('click', function() {
